@@ -8,6 +8,8 @@ import Health
 import KituraOpenAPI
 import KituraCORS
 import Dispatch
+import SwiftKueryORM
+import SwiftKueryPostgreSQL
 
 public let projectPath = ConfigurationManager.BasePath.project.path
 public let health = Health()
@@ -15,13 +17,13 @@ public let health = Health()
 public class App {
     let router = Router()
     let cloudEnv = CloudEnv()
-	private var todoStore: [ToDo] = []
 	private var nextId: Int = 0
 	private let workerQueue = DispatchQueue(label: "worker")
 	
     public init() throws {
         // Run the metrics initializer
         initializeMetrics(router: router)
+		
     }
 
     func postInit() throws {
@@ -37,6 +39,14 @@ public class App {
 		router.get("/", handler: getOneHandler)
 		router.patch("/", handler: updateHandler)
 		router.delete("/", handler: deleteOneHandler)
+		
+		
+		Persistence.setUp()
+		do {
+			try ToDo.createTableSync()
+		} catch let error {
+			print(error)
+		}
 
 	}
 
@@ -52,7 +62,7 @@ public class App {
 		}
 	}
 	
-	func storeHandler(todo: ToDo, completion: (ToDo?, RequestError?) -> Void ) {
+	func storeHandler(todo: ToDo, completion: @escaping (ToDo?, RequestError?) -> Void ) {
 		var todo = todo
 		if todo.completed == nil {
 			todo.completed = false
@@ -60,52 +70,53 @@ public class App {
 		todo.id = nextId
 		todo.url = "http://localhost:8080/\(nextId)"
 		nextId += 1
-		execute {
-			todoStore.append(todo)
-		}
-		completion(todo, nil)
+		todo.save(completion)
+		
 	}
 	
-	func deleteAllHandler(completion: (RequestError?) -> Void ) {
-		execute {
-			todoStore = []
-		}
-		completion(nil)
+	func deleteAllHandler(completion: @escaping (RequestError?) -> Void ) {
+		ToDo.deleteAll(completion)
 	}
 	
-	func getAllHandler(completion: ([ToDo]?, RequestError?) -> Void ) {
-		completion(todoStore, nil)
+	func getAllHandler(completion: @escaping ([ToDo]?, RequestError?) -> Void ) {
+		ToDo.findAll(completion)
 	}
 	
-	func getOneHandler(id: Int, completion: (ToDo?, RequestError?) -> Void ) {
-		guard let todo = todoStore.first(where: { $0.id == id }) else {
-			return completion(nil, .notFound)
-		}
-		completion(todo, nil)
+	func getOneHandler(id: Int, completion: @escaping(ToDo?, RequestError?) -> Void ) {
+		ToDo.find(id: id, completion)
 	}
 	
-	func updateHandler(id: Int, new: ToDo, completion: (ToDo?, RequestError?) -> Void ) {
-		guard let index = todoStore.index(where: { $0.id == id }) else {
-			return completion(nil, .notFound)
+	func updateHandler(id: Int, new: ToDo, completion: @escaping (ToDo?, RequestError?) -> Void ) {
+
+		ToDo.find(id: id) { (preExistingToDo, error) in
+			if let error = error {
+				
+			}
+			
+			guard var oldToDo = preExistingToDo else {
+				print("Unable to find ToDo in database.")
+				return
+			}
+			
+			oldToDo.user = new.user ?? oldToDo.user
+			oldToDo.order = new.order ?? oldToDo.order
+			oldToDo.title = new.title ?? oldToDo.title
+			oldToDo.completed = new.completed ?? oldToDo.completed
+			
+			oldToDo.update(id: oldToDo.id!, completion)
+			
 		}
-		var current = todoStore[index]
-		current.user = new.user ?? current.user
-		current.order = new.order ?? current.order
-		current.title = new.title ?? current.title
-		current.completed = new.completed ?? current.completed
-		execute {
-			todoStore[index] = current
-		}
-		completion(current, nil)
 	}
 	
-	func deleteOneHandler(id: Int, completion: (RequestError?) -> Void ) {
-		guard let index = todoStore.index(where: { $0.id == id }) else {
-			return completion(.notFound)
-		}
-		execute {
-			todoStore.remove(at: index)
-		}
-		completion(nil)
+	func deleteOneHandler(id: Int, completion: @escaping (RequestError?) -> Void ) {
+		ToDo.delete(id: id, completion)
+
+	}
+}
+
+class Persistence {
+	static func setUp() {
+		let pool = PostgreSQLConnection.createPool(host: "localhost", port: 5432, options: [.databaseName("tododb")], poolOptions: ConnectionPoolOptions(initialCapacity: 10, maxCapacity: 50, timeout: 10000))
+		Database.default = Database(pool)
 	}
 }
