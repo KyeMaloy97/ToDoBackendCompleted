@@ -1,0 +1,4 @@
+module hcapiplugin {
+    umbrella "/Users/kyemaloy/ToDoWorkshop/ToDoBackend/ToDoServer/.build/checkouts/omr-agentcore-5347502805920033163/src/hcapiplugin/include"
+    export *
+}
