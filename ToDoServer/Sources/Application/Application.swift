@@ -45,7 +45,7 @@ public class App {
 		do {
 			try ToDo.createTableSync()
 		} catch let error {
-			print(error)
+			print("Database already exists.")
 		}
 
 	}
