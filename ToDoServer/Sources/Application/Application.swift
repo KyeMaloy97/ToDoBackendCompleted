@@ -89,13 +89,16 @@ public class App {
 	func updateHandler(id: Int, new: ToDo, completion: @escaping (ToDo?, RequestError?) -> Void ) {
 
 		ToDo.find(id: id) { (preExistingToDo, error) in
-			if let error = error {
-				
+			if error != nil {
+				return completion(nil, .notFound)
 			}
 			
 			guard var oldToDo = preExistingToDo else {
-				print("Unable to find ToDo in database.")
-				return
+				return completion(nil, .notFound)
+			}
+			
+			guard let id = oldToDo.id else {
+				return completion(nil, .internalServerError)
 			}
 			
 			oldToDo.user = new.user ?? oldToDo.user
@@ -103,7 +106,7 @@ public class App {
 			oldToDo.title = new.title ?? oldToDo.title
 			oldToDo.completed = new.completed ?? oldToDo.completed
 			
-			oldToDo.update(id: oldToDo.id!, completion)
+			oldToDo.update(id: id, completion)
 			
 		}
 	}
