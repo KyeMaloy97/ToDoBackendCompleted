@@ -19,7 +19,3 @@ public struct ToDo : Codable, Equatable {
 		return (lhs.title == rhs.title) && (lhs.user == rhs.user) && (lhs.order == rhs.order) && (lhs.completed == rhs.completed) && (lhs.url == rhs.url) && (lhs.id == rhs.id)
 	}
 }
-
-extension ToDo: Model {
-}
-

@@ -114,6 +114,10 @@ public class App {
 	}
 }
 
+extension ToDo: Model {
+}
+
+
 class Persistence {
 	static func setUp() {
 		let pool = PostgreSQLConnection.createPool(host: "localhost", port: 5432, options: [.databaseName("tododb")], poolOptions: ConnectionPoolOptions(initialCapacity: 10, maxCapacity: 50, timeout: 10000))
